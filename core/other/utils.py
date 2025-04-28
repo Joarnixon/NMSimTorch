@@ -1,44 +1,47 @@
-import numpy as np
-from numpy import cos, sin
+import torch
 from datetime import datetime
-# from pyqtgraph import makeARGB
 
 
 def compute_translation_matrix(translation):
-    dx, dy, dz = translation
-    translation_matrix = np.array([
-        [1., 0., 0., dx],
-        [0., 1., 0., dy],
-        [0., 0., 1., dz],
-        [0., 0., 0., 1.]
-        ])
-    return translation_matrix
+    N = translation.shape[0]
+    device = translation.device
+    matrix = torch.eye(4, device=device).unsqueeze(0).repeat(N, 1, 1) # Shape (N, 4, 4)
+    matrix[:, 0, 3] = translation[:, 0].squeeze(1)
+    matrix[:, 1, 3] = translation[:, 1].squeeze(1)
+    matrix[:, 2, 3] = translation[:, 2].squeeze(1)
+    return matrix
 
 
 def compute_rotation_matrix(angles):
-    alpha, beta, gamma = angles
-    rotation_matrix = np.array([
-        [cos(alpha)*cos(beta),  cos(alpha)*sin(beta)*sin(gamma) - sin(alpha)*cos(gamma),    cos(alpha)*sin(beta)*cos(gamma) + sin(alpha)*sin(gamma),    0.],
-        [sin(alpha)*cos(beta),  sin(alpha)*sin(beta)*sin(gamma) + cos(alpha)*cos(gamma),    sin(alpha)*sin(beta)*cos(gamma) - cos(alpha)*sin(gamma),    0.],
-        [-sin(beta),            cos(beta)*sin(gamma),                                       cos(beta)*cos(gamma),                                       0.],
-        [0.,                    0.,                                                         0.,                                                         1.]
-        ])
-    return rotation_matrix
+    N = angles.shape[0]
+    device = angles.device
+    alpha = angles[:, 0].squeeze(1) # Rotation around Z
+    beta = angles[:, 1].squeeze(1)  # Rotation around Y
+    gamma = angles[:, 2].squeeze(1) # Rotation around X
+    
+    cos_alpha = torch.cos(alpha)
+    sin_alpha = torch.sin(alpha)
+    cos_beta = torch.cos(beta)
+    sin_beta = torch.sin(beta)
+    cos_gamma = torch.cos(gamma)
+    sin_gamma = torch.sin(gamma)
 
+    matrix = torch.eye(4, device=device).unsqueeze(0).repeat(N, 1, 1) # Shape (N, 4, 4)
 
-def unique_with_indices(array):
-    return [(uniqueEl, np.array([i for i, element in enumerate(array) if element is uniqueEl])) for uniqueEl in set(array)]
+    matrix[:, 0, 0] = cos_alpha * cos_beta
+    matrix[:, 0, 1] = cos_alpha * sin_beta * sin_gamma - sin_alpha * cos_gamma
+    matrix[:, 0, 2] = cos_alpha * sin_beta * cos_gamma + sin_alpha * sin_gamma
 
+    matrix[:, 1, 0] = sin_alpha * cos_beta
+    matrix[:, 1, 1] = sin_alpha * sin_beta * sin_gamma + cos_alpha * cos_gamma
+    matrix[:, 1, 2] = sin_alpha * sin_beta * cos_gamma - cos_alpha * sin_gamma
+
+    matrix[:, 2, 0] = -sin_beta
+    matrix[:, 2, 1] = cos_beta * sin_gamma
+    matrix[:, 2, 2] = cos_beta * cos_gamma
+    return matrix
 
 def datetime_from_seconds(seconds):
     zerodatetime = datetime.fromtimestamp(0)
     nowdatetime = datetime.fromtimestamp(seconds)
     return nowdatetime - zerodatetime
-
-# def make3DRGBA(array3D, lut=None, levels=None):
-#     levels = [np.nanmin(array3D), np.nanmax(array3D)] if levels is None else levels
-#     arrayRGBA = np.ndarray((*(array3D.shape), 4), dtype=np.ubyte)
-#     for i, array2D in enumerate(array3D):
-#         arrayRGBA[i] = makeARGB(array2D, lut=lut, levels=levels, useRGBA=True)[0]
-#     return arrayRGBA
-

@@ -1,5 +1,6 @@
 from core.geometry.volumes import TransformableVolume
-
+import torch
+import time
 
 class WoodcockVolume(TransformableVolume):
     """
@@ -15,12 +16,11 @@ class WoodcockParameticVolume(WoodcockVolume):
     def _parametric_function(self, position):
         return [], None
 
-    def get_material_by_position(self, position, local=False, as_parent=True):
+    def get_material_by_position(self, position, batch_indices, local=False, as_parent=True):
         if not local:
-            position = self.convert_to_local_position(position, as_parent)
-        material = super().get_material_by_position(position, True, as_parent)
-        inside = (material != 0).nonzero()[0]
-        indices, new_material = self._parametric_function(position[inside])
-        material[inside[indices]] = new_material
+            position = self.convert_to_local_position(position, batch_indices)
+        material = super().get_material_by_position(position, batch_indices, True)
+        inside_indices = torch.where(material.data != 0)[0]
+        indices, new_material = self._parametric_function(position[inside_indices])
+        material[inside_indices[indices]] = new_material
         return material
-
